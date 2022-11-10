@@ -1,5 +1,8 @@
 (ns ch04-map-filter.core
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string]
+            [clojure.data.csv :as csv]
+            [clojure.java.io :as io]
+            [semantic-csv.core :as sc]))
 
 
 (defn foo
@@ -276,7 +279,7 @@
   (->> users
        (filter #(= status (:status %)))
        (map field)
-       (apply max 0))
+       (apply max 0)))
 
 (defn min-value-by-status [field status users]
   (->> users
@@ -298,3 +301,73 @@
 ;; => 0
 (max-value-by-status :current-points :speed-boost game-users)
 ;; => 2043
+
+;;; importing dataset from csv
+;; exercise 4.10
+(with-open [r (io/reader "resources/match_scores_1991-2016_unindexed_csv.csv")]
+  (first (csv/read-csv r)))
+;; => ["tourney_year_id" "tourney_order" "tourney_slug" "tourney_url_suffix" "tourney_round_name" "round_order" "match_order" "winner_name" "winner_player_id" "winner_slug" "loser_name" "loser_player_id" "loser_slug" "winner_seed" "loser_seed" "match_score_tiebreaks" "winner_sets_won" "loser_sets_won" "winner_games_won" "loser_games_won" "winner_tiebreaks_won" "loser_tiebreaks_won" "match_id" "match_stats_url_suffix"]
+
+(with-open [r (io/reader "resources/match_scores_1991-2016_unindexed_csv.csv")]
+  (count (csv/read-csv r)))
+;; => 95360
+
+
+;; forcing evaluation with doall
+(with-open [r (io/reader "resources/match_scores_1991-2016_unindexed_csv.csv")]
+  (->> (csv/read-csv r)
+       (map #(nth % 7))
+       (take 6)
+       doall))
+;; ("winner_name"
+;;  "Nicklas Kulti"
+;;  "Michael Stich"
+;;  "Nicklas Kulti"
+;;  "Jim Courier"
+;;  "Michael Stich")
+
+;;; exercise 4.12
+(defn first-match [csv]
+  (with-open [r (io/reader csv)]
+    (->> (csv/read-csv r)
+         sc/mappify
+         first)))
+
+(first-match "resources/match_scores_1991-2016_unindexed_csv.csv")
+;; => {:tourney_slug "adelaide", :loser_slug "michael-stich", :winner_sets_won "2", :match_score_tiebreaks "63 16 62", :loser_sets_won "1", :loser_games_won "11", :tourney_year_id "1991-7308", :tourney_order "1", :winner_seed "", :loser_seed "6", :winner_slug "nicklas-kulti", :match_order "1", :loser_name "Michael Stich", :winner_player_id "k181", :match_stats_url_suffix "/en/scores/1991/7308/MS001/match-stats", :tourney_url_suffix "/en/scores/archive/adelaide/7308/1991/results", :loser_player_id "s351", :loser_tiebreaks_won "0", :round_order "1", :tourney_round_name "Finals", :match_id "1991-7308-k181-s351", :winner_name "Nicklas Kulti", :winner_games_won "13", :winner_tiebreaks_won "0"}
+
+;; get only specific fields
+(defn five-matches [csv]
+  (with-open [r (io/reader csv)]
+    (->> (csv/read-csv r)
+         sc/mappify
+         (map #(select-keys % [:tourney_year_id
+                               :winner_name
+                               :loser_name
+                               :winner_sets_won
+                               :loser_sets_won]))
+         (take 5)
+         doall)))
+;; => #'ch04-map-filter.core/five-matches
+
+(five-matches "resources/match_scores_1991-2016_unindexed_csv.csv")
+;; => ({:tourney_year_id "1991-7308", :winner_name "Nicklas Kulti", :loser_name "Michael Stich", :winner_sets_won "2", :loser_sets_won "1"} {:tourney_year_id "1991-7308", :winner_name "Michael Stich", :loser_name "Jim Courier", :winner_sets_won "2", :loser_sets_won "0"} {:tourney_year_id "1991-7308", :winner_name "Nicklas Kulti", :loser_name "Magnus Larsson", :winner_sets_won "2", :loser_sets_won "0"} {:tourney_year_id "1991-7308", :winner_name "Jim Courier", :loser_name "Martin Sinner", :winner_sets_won "2", :loser_sets_won "0"} {:tourney_year_id "1991-7308", :winner_name "Michael Stich", :loser_name "Jimmy Arias", :winner_sets_won "2", :loser_sets_won "1"})
+
+;; cast some value from string to integer
+(defn five-matches-int-sets [csv]
+  (with-open [r (io/reader csv)]
+    (->> (csv/read-csv r)
+         sc/mappify
+         (map #(select-keys % [:tourney_year_id
+                               :winner_name
+                               :loser_name
+                               :winner_sets_won
+                               :loser_sets_won]))
+         (sc/cast-with {:winner_sets_won sc/->int
+                        :loser_sets_won sc/->int})
+         (take 5)
+         doall)))
+;; => #'ch04-map-filter.core/five-matches-int-sets
+
+(five-matches-int-sets "resources/match_scores_1991-2016_unindexed_csv.csv")
+;; => ({:tourney_year_id "1991-7308", :winner_name "Nicklas Kulti", :loser_name "Michael Stich", :winner_sets_won 2, :loser_sets_won 1} {:tourney_year_id "1991-7308", :winner_name "Michael Stich", :loser_name "Jim Courier", :winner_sets_won 2, :loser_sets_won 0} {:tourney_year_id "1991-7308", :winner_name "Nicklas Kulti", :loser_name "Magnus Larsson", :winner_sets_won 2, :loser_sets_won 0} {:tourney_year_id "1991-7308", :winner_name "Jim Courier", :loser_name "Martin Sinner", :winner_sets_won 2, :loser_sets_won 0} {:tourney_year_id "1991-7308", :winner_name "Michael Stich", :loser_name "Jimmy Arias", :winner_sets_won 2, :loser_sets_won 1})
