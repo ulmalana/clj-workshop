@@ -371,3 +371,116 @@
 
 (five-matches-int-sets "resources/match_scores_1991-2016_unindexed_csv.csv")
 ;; => ({:tourney_year_id "1991-7308", :winner_name "Nicklas Kulti", :loser_name "Michael Stich", :winner_sets_won 2, :loser_sets_won 1} {:tourney_year_id "1991-7308", :winner_name "Michael Stich", :loser_name "Jim Courier", :winner_sets_won 2, :loser_sets_won 0} {:tourney_year_id "1991-7308", :winner_name "Nicklas Kulti", :loser_name "Magnus Larsson", :winner_sets_won 2, :loser_sets_won 0} {:tourney_year_id "1991-7308", :winner_name "Jim Courier", :loser_name "Martin Sinner", :winner_sets_won 2, :loser_sets_won 0} {:tourney_year_id "1991-7308", :winner_name "Michael Stich", :loser_name "Jimmy Arias", :winner_sets_won 2, :loser_sets_won 1})
+
+
+;; exercise 4.13
+(defn federer-wins [csv]
+  (with-open [r (io/reader csv)]
+    (->> (csv/read-csv r)
+         sc/mappify
+         (filter #(= "Roger Federer" (:winner_name %)))
+         (map #(select-keys % [:winner_name
+                               :loser_name
+                               :winner_sets_won
+                               :loser_sets_won
+                               :winner_games_won
+                               :loser_games_won
+                               :tourney_year_id
+                               :tourney_slug]))
+         doall)))
+
+(take 3 (federer-wins "resources/match_scores_1991-2016_unindexed_csv.csv"))
+;; => ({:winner_name "Roger Federer", :loser_name "Richard Fromberg", :winner_sets_won "2", :loser_sets_won "0", :winner_games_won "13", :loser_games_won "7", :tourney_year_id "1998-327", :tourney_slug "toulouse"} {:winner_name "Roger Federer", :loser_name "Guillaume Raoux", :winner_sets_won "2", :loser_sets_won "0", :winner_games_won "12", :loser_games_won "4", :tourney_year_id "1998-327", :tourney_slug "toulouse"} {:winner_name "Roger Federer", :loser_name "Jerome Golmard", :winner_sets_won "2", :loser_sets_won "1", :winner_games_won "20", :loser_games_won "19", :tourney_year_id "1999-496", :tourney_slug "marseille"})
+;; => 
+
+;; exercise 4.14
+(defn match-query [csv pred]
+  (with-open [r (io/reader csv)]
+    (->> (csv/read-csv r)
+         sc/mappify
+         (filter pred)
+         (map #(select-keys % [:winner_name
+                               :loser_name
+                               :winner_sets_won
+                               :loser_sets_won
+                               :winner_games_won
+                               :loser_games_won
+                               :tourney_year_id
+                               :tourney_slug]))
+         doall)))
+
+(count (match-query "resources/match_scores_1991-2016_unindexed_csv.csv"
+                    #((hash-set (:winner_name %) (:loser_name %)) "Roger Federer")))
+;; => 1290
+
+(count (match-query "resources/match_scores_1991-2016_unindexed_csv.csv"
+                    #(= (:winner_name %) "Roger Federer")))
+;; => 1050
+
+;; exercise 4.15
+(take 3 (match-query "resources/match_scores_1991-2016_unindexed_csv.csv"
+                     #(= (hash-set (:winner_name %) (:loser_name %))
+                         #{"Roger Federer" "Rafael Nadal"})))
+;; => ({:winner_name "Rafael Nadal", :loser_name "Roger Federer", :winner_sets_won "2", :loser_sets_won "0", :winner_games_won "12", :loser_games_won "6", :tourney_year_id "2004-403", :tourney_slug "miami"} {:winner_name "Roger Federer", :loser_name "Rafael Nadal", :winner_sets_won "3", :loser_sets_won "2", :winner_games_won "27", :loser_games_won "23", :tourney_year_id "2005-403", :tourney_slug "miami"} {:winner_name "Rafael Nadal", :loser_name "Roger Federer", :winner_sets_won "3", :loser_sets_won "1", :winner_games_won "22", :loser_games_won "16", :tourney_year_id "2005-520", :tourney_slug "roland-garros"})
+
+(defn close-match-query [csv pred]
+  (with-open [r (io/reader csv)]
+    (->> (csv/read-csv r)
+         sc/mappify
+         (sc/cast-with {:winner_sets_won sc/->int
+                        :loser_sets_won sc/->int
+                        :winner_games_won sc/->int
+                        :loser_games_won sc/->int})
+         (filter pred)
+         (map #(select-keys % [:winner_name
+                               :loser_name
+                               :winner_sets_won
+                               :loser_sets_won
+                               :winner_games_won
+                               :loser_games_won
+                               :tourney_year_id
+                               :tourney_slug]))
+         doall)))
+;; => #'ch04-map-filter.core/close-match-query
+
+(take 3 (close-match-query "resources/match_scores_1991-2016_unindexed_csv.csv"
+                           #(and (= (hash-set (:winner_name %) (:loser_name %))
+                                    #{"Roger Federer" "Rafael Nadal"})
+                                 (= 1 (- (:winner_sets_won %) (:loser_sets_won %))))))
+;; => ({:winner_name "Roger Federer", :loser_name "Rafael Nadal", :winner_sets_won 3, :loser_sets_won 2, :winner_games_won 27, :loser_games_won 23, :tourney_year_id "2005-403", :tourney_slug "miami"} {:winner_name "Rafael Nadal", :loser_name "Roger Federer", :winner_sets_won 2, :loser_sets_won 1, :winner_games_won 14, :loser_games_won 14, :tourney_year_id "2006-495", :tourney_slug "dubai"} {:winner_name "Rafael Nadal", :loser_name "Roger Federer", :winner_sets_won 3, :loser_sets_won 2, :winner_games_won 28, :loser_games_won 29, :tourney_year_id "2006-416", :tourney_slug "rome"})
+
+;;; activity
+(defn rivalry-data [csv p1 p2]
+  (with-open [r (io/reader csv)]
+    (let [rivalry-seq (->>(csv/read-csv r)
+                          sc/mappify
+                          (sc/cast-with {:winner_sets_won sc/->int
+                                         :loser_sets_won sc/->int
+                                         :winner_games_won sc/->int
+                                         :loser_games_won sc/->int})
+                          (filter #(= (hash-set (:winner_name %) (:loser_name %))
+                                      #{p1 p2}))
+                          (map #(select-keys % [:winner_name
+                                                :loser_name
+                                                :winner_sets_won
+                                                :loser_sets_won
+                                                :winner_games_won
+                                                :loser_games_won
+                                                :tourney_year_id
+                                                :tourney_slug])))
+          p1-wins (filter #(= (:winner_name %) p1) rivalry-seq)
+          p2-wins (filter #(= (:winner_name %) p2) rivalry-seq)]
+      {:first-victory-player-1 (first p1-wins)
+       :first-victory-player-2 (first p2-wins)
+       :total-matches (count rivalry-seq)
+       :total-victory-player-1 (count p1-wins)
+       :total-victory-player-2 (count p2-wins)
+       :most-competitive-matches (->> rivalry-seq
+                                      (filter #(= 1 (- (:winner_sets_won %) (:loser_sets_won %)))))})))
+
+
+(rivalry-data "resources/match_scores_1968-1990_unindexed_csv.csv"
+              "Boris Becker"
+              "Jimmy Connors")
+;; => {:first-victory-player-1 {:winner_name "Boris Becker", :loser_name "Jimmy Connors", :winner_sets_won 2, :loser_sets_won 1, :winner_games_won 17, :loser_games_won 16, :tourney_year_id "1986-411", :tourney_slug "chicago"}, :first-victory-player-2 nil, :total-matches 5, :total-victory-player-1 5, :total-victory-player-2 0, :most-competitive-matches ({:winner_name "Boris Becker", :loser_name "Jimmy Connors", :winner_sets_won 2, :loser_sets_won 1, :winner_games_won 17, :loser_games_won 16, :tourney_year_id "1986-411", :tourney_slug "chicago"} {:winner_name "Boris Becker", :loser_name "Jimmy Connors", :winner_sets_won 2, :loser_sets_won 1, :winner_games_won 15, :loser_games_won 15, :tourney_year_id "1986-428", :tourney_slug "bolton"} {:winner_name "Boris Becker", :loser_name "Jimmy Connors", :winner_sets_won 2, :loser_sets_won 1, :winner_games_won 18, :loser_games_won 14, :tourney_year_id "1987-311", :tourney_slug "london"} {:winner_name "Boris Becker", :loser_name "Jimmy Connors", :winner_sets_won 2, :loser_sets_won 1, :winner_games_won 15, :loser_games_won 14, :tourney_year_id "1987-605", :tourney_slug "nitto-atp-finals"})}
+;; => 
