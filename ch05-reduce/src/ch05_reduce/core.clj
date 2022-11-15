@@ -1,5 +1,8 @@
 (ns ch05-reduce.core
-  (:require [ch05-reduce.serena :as serena]))
+  (:require [ch05-reduce.serena :as serena]
+            [clojure.java.io :as io]
+            [clojure.data.csv :as csv]
+            [semantic-csv.core :as sc]))
 
 (defn foo
   "I don't do a whole lot."
@@ -146,6 +149,24 @@
    [108 402]
    [115.5 473]])
 
+
+(defn same-slope-as-current? [current elevation]
+  (or (= 1 (count current))
+      (let [[[_ next-to-last] [_ the-last]] (take-last 2 current)]
+        (or (>= next-to-last the-last elevation)
+            (<= next-to-last the-last elevation)))))
+
+(same-slope-as-current? [[1 5] [2 10]] 15)
+;; => true
+(same-slope-as-current? [[1 5] [2 10]] 5)
+;; => false
+(same-slope-as-current? [[1 5] [2 10]] 10)
+;; => true
+(same-slope-as-current? [[1 5]] 10)
+;; => true
+(same-slope-as-current? [[1 5] [2 10] [3 15]] 20)
+;; => true
+
 (defn distances-elevation-to-next-peak-or-valley
   [data]
   (-> (reduce
@@ -176,22 +197,6 @@
       :calculated
       reverse))
 
-(defn same-slope-as-current? [current elevation]
-  (or (= 1 (count current))
-      (let [[[_ next-to-last] [_ the-last]] (take-last 2 current)]
-        (or (>= next-to-last the-last elevation)
-            (<= next-to-last the-last elevation)))))
-
-(same-slope-as-current? [[1 5] [2 10]] 15)
-;; => true
-(same-slope-as-current? [[1 5] [2 10]] 5)
-;; => false
-(same-slope-as-current? [[1 5] [2 10]] 10)
-;; => true
-(same-slope-as-current? [[1 5]] 10)
-;; => true
-(same-slope-as-current? [[1 5] [2 10] [3 15]] 20)
-;; => true
 
 (distances-elevation-to-next-peak-or-valley distance-elevation)
 ;; => ({:race-position 0, :elevation 400, :distance-to-next 19, :elevation-to-next 222} {:race-position 12.5, :elevation 457, :distance-to-next 6.5, :elevation-to-next 165} {:race-position 19, :elevation 622, :distance-to-next 2.5, :elevation-to-next -30} {:race-position 21.5, :elevation 592, :distance-to-next 21.5, :elevation-to-next 885} {:race-position 29, :elevation 615, :distance-to-next 14, :elevation-to-next 862} {:race-position 35.5, :elevation 892, :distance-to-next 7.5, :elevation-to-next 585} {:race-position 39, :elevation 1083, :distance-to-next 4, :elevation-to-next 394} {:race-position 43, :elevation 1477, :distance-to-next 19.5, :elevation-to-next -747} {:race-position 48.5, :elevation 1151, :distance-to-next 14.0, :elevation-to-next -421} {:race-position 52.5, :elevation 999, :distance-to-next 10.0, :elevation-to-next -269} {:race-position 57.5, :elevation 800, :distance-to-next 5.0, :elevation-to-next -70} {:race-position 62.5, :elevation 730, :distance-to-next 8.0, :elevation-to-next 703} {:race-position 65, :elevation 1045, :distance-to-next 5.5, :elevation-to-next 388} {:race-position 68.5, :elevation 1390, :distance-to-next 2.0, :elevation-to-next 43} {:race-position 70.5, :elevation 1433, :distance-to-next 13.5, :elevation-to-next -766} {:race-position 75, :elevation 1211, :distance-to-next 9, :elevation-to-next -544} {:race-position 78.5, :elevation 917, :distance-to-next 5.5, :elevation-to-next -250} {:race-position 82.5, :elevation 744, :distance-to-next 1.5, :elevation-to-next -77} {:race-position 84, :elevation 667, :distance-to-next 4.5, :elevation-to-next 193} {:race-position 88.5, :elevation 860, :distance-to-next 19.5, :elevation-to-next -458} {:race-position 96, :elevation 671, :distance-to-next 12, :elevation-to-next -269} {:race-position 99, :elevation 584, :distance-to-next 9, :elevation-to-next -182} {:race-position 108, :elevation 402, :distance-to-next 7.5, :elevation-to-next 71} {:race-position 115.5, :elevation 473, :distance-to-next 0, :elevation-to-next 0})
@@ -223,3 +228,154 @@
 
 (serena-williams-win-loss-streaks serena/serena-williams-2015)
 ;; => [{:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Van Uytvanck A.", :tournament "Australian Open", :location "Melbourne", :date "2015-01-20", :current-streak "First match of the year"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Zvonareva V.", :tournament "Australian Open", :location "Melbourne", :date "2015-01-22", :current-streak "Won 1"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Svitolina E.", :tournament "Australian Open", :location "Melbourne", :date "2015-01-24", :current-streak "Won 2"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Muguruza G.", :tournament "Australian Open", :location "Melbourne", :date "2015-01-26", :current-streak "Won 3"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Cibulkova D.", :tournament "Australian Open", :location "Melbourne", :date "2015-01-28", :current-streak "Won 4"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Keys M.", :tournament "Australian Open", :location "Melbourne", :date "2015-01-29", :current-streak "Won 5"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Sharapova M.", :tournament "Australian Open", :location "Melbourne", :date "2015-01-31", :current-streak "Won 6"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Niculescu M.", :tournament "BNP Paribas Open", :location "Indian Wells", :date "2015-03-14", :current-streak "Won 7"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Diyas Z.", :tournament "BNP Paribas Open", :location "Indian Wells", :date "2015-03-15", :current-streak "Won 8"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Stephens S.", :tournament "BNP Paribas Open", :location "Indian Wells", :date "2015-03-17", :current-streak "Won 9"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Bacsinszky T.", :tournament "BNP Paribas Open", :location "Indian Wells", :date "2015-03-19", :current-streak "Won 10"} {:loser-sets-won nil, :winner-sets-won nil, :winner-name "Halep S.", :loser-name "Williams S.", :tournament "BNP Paribas Open", :location "Indian Wells", :date "2015-03-21", :current-streak "Won 11"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Niculescu M.", :tournament "Sony Ericsson Open", :location "Miami", :date "2015-03-28", :current-streak "Lost 1"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Bellis C.", :tournament "Sony Ericsson Open", :location "Miami", :date "2015-03-29", :current-streak "Won 1"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Kuznetsova S.", :tournament "Sony Ericsson Open", :location "Miami", :date "2015-03-30", :current-streak "Won 2"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Lisicki S.", :tournament "Sony Ericsson Open", :location "Miami", :date "2015-04-01", :current-streak "Won 3"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Halep S.", :tournament "Sony Ericsson Open", :location "Miami", :date "2015-04-03", :current-streak "Won 4"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Suarez Navarro C.", :tournament "Sony Ericsson Open", :location "Miami", :date "2015-04-04", :current-streak "Won 5"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Brengle M.", :tournament "Mutua Madrid Open", :location "Madrid", :date "2015-05-03", :current-streak "Won 6"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Stephens S.", :tournament "Mutua Madrid Open", :location "Madrid", :date "2015-05-04", :current-streak "Won 7"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Azarenka V.", :tournament "Mutua Madrid Open", :location "Madrid", :date "2015-05-06", :current-streak "Won 8"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Suarez Navarro C.", :tournament "Mutua Madrid Open", :location "Madrid", :date "2015-05-07", :current-streak "Won 9"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Kvitova P.", :loser-name "Williams S.", :tournament "Mutua Madrid Open", :location "Madrid", :date "2015-05-08", :current-streak "Won 10"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Pavlyuchenkova A.", :tournament "Internazionali BNL d'Italia", :location "Rome", :date "2015-05-12", :current-streak "Lost 1"} {:loser-sets-won nil, :winner-sets-won nil, :winner-name "Mchale C.", :loser-name "Williams S.", :tournament "Internazionali BNL d'Italia", :location "Rome", :date "2015-05-14", :current-streak "Won 1"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Hlavackova A.", :tournament "French Open", :location "Paris", :date "2015-05-26", :current-streak "Lost 1"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Friedsam A.L.", :tournament "French Open", :location "Paris", :date "2015-05-28", :current-streak "Won 1"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Azarenka V.", :tournament "French Open", :location "Paris", :date "2015-05-30", :current-streak "Won 2"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Stephens S.", :tournament "French Open", :location "Paris", :date "2015-06-01", :current-streak "Won 3"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Errani S.", :tournament "French Open", :location "Paris", :date "2015-06-03", :current-streak "Won 4"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Bacsinszky T.", :tournament "French Open", :location "Paris", :date "2015-06-04", :current-streak "Won 5"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Safarova L.", :tournament "French Open", :location "Paris", :date "2015-06-06", :current-streak "Won 6"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Gasparyan M.", :tournament "Wimbledon", :location "London", :date "2015-06-29", :current-streak "Won 7"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Babos T.", :tournament "Wimbledon", :location "London", :date "2015-07-01", :current-streak "Won 8"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Watson H.", :tournament "Wimbledon", :location "London", :date "2015-07-03", :current-streak "Won 9"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Williams V.", :tournament "Wimbledon", :location "London", :date "2015-07-06", :current-streak "Won 10"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Azarenka V.", :tournament "Wimbledon", :location "London", :date "2015-07-07", :current-streak "Won 11"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Sharapova M.", :tournament "Wimbledon", :location "London", :date "2015-07-09", :current-streak "Won 12"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Muguruza G.", :tournament "Wimbledon", :location "London", :date "2015-07-11", :current-streak "Won 13"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Bonaventure Y.", :tournament "Collector Swedish Open", :location "Bastad", :date "2015-07-15", :current-streak "Won 14"} {:loser-sets-won nil, :winner-sets-won nil, :winner-name "Koukalova K.", :loser-name "Williams S.", :tournament "Collector Swedish Open", :location "Bastad", :date "2015-07-16", :current-streak "Won 15"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Pennetta F.", :tournament "Rogers Cup", :location "Toronto", :date "2015-08-11", :current-streak "Lost 1"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Petkovic A.", :tournament "Rogers Cup", :location "Toronto", :date "2015-08-14", :current-streak "Won 1"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Vinci R.", :tournament "Rogers Cup", :location "Toronto", :date "2015-08-15", :current-streak "Won 2"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Bencic B.", :loser-name "Williams S.", :tournament "Rogers Cup", :location "Toronto", :date "2015-08-15", :current-streak "Won 3"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Pironkova T.", :tournament "Western & Southern Financial Group Women's Open", :location "Cincinnati", :date "2015-08-19", :current-streak "Lost 1"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Knapp K.", :tournament "Western & Southern Financial Group Women's Open", :location "Cincinnati", :date "2015-08-20", :current-streak "Won 1"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Ivanovic A.", :tournament "Western & Southern Financial Group Women's Open", :location "Cincinnati", :date "2015-08-21", :current-streak "Won 2"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Svitolina E.", :tournament "Western & Southern Financial Group Women's Open", :location "Cincinnati", :date "2015-08-23", :current-streak "Won 3"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Halep S.", :tournament "Western & Southern Financial Group Women's Open", :location "Cincinnati", :date "2015-08-23", :current-streak "Won 4"} {:loser-sets-won 0, :winner-sets-won 1, :winner-name "Williams S.", :loser-name "Diatchenko V.", :tournament "US Open", :location "New York", :date "2015-09-01", :current-streak "Won 5"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Bertens K.", :tournament "US Open", :location "New York", :date "2015-09-02", :current-streak "Won 6"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Mattek-Sands B.", :tournament "US Open", :location "New York", :date "2015-09-05", :current-streak "Won 7"} {:loser-sets-won 0, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Keys M.", :tournament "US Open", :location "New York", :date "2015-09-06", :current-streak "Won 8"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Williams S.", :loser-name "Williams V.", :tournament "US Open", :location "New York", :date "2015-09-09", :current-streak "Won 9"} {:loser-sets-won 1, :winner-sets-won 2, :winner-name "Vinci R.", :loser-name "Williams S.", :tournament "US Open", :location "New York", :date "2015-09-11", :current-streak "Won 10"}]
+
+;;; reducing without reduce
+
+;; zipmap
+(zipmap [:a :b :c] [0 1 2])
+;; => {:a 0, :b 1, :c 2}
+
+;; exercise 5.04
+(def matches
+  [{:winner-name "Kvitova P.",
+    :loser-name "Ostapenko J.",
+    :tournament "US Open",
+    :location "New York",
+    :date "2016-08-29"}
+   {:winner-name "Kvitova P.",
+    :loser-name "Buyukakcay C.",
+    :tournament "US Open",
+    :location "New York",
+    :date "2016-08-31"}
+   {:winner-name "Kvitova P.",
+    :loser-name "Svitolina E.",
+    :tournament "US Open",
+    :location "New York",
+    :date "2016-09-02"}
+   {:winner-name "Kerber A.",
+    :loser-name "Kvitova P.",
+    :tournament "US Open",
+    :location "New York",
+    :date "2016-09-05"}
+   {:winner-name "Kvitova P.",
+    :loser-name "Brengle M.",
+    :tournament "Toray Pan Pacific Open",
+    :location "Tokyo",
+    :date "2016-09-20"}
+   {:winner-name "Puig M.",
+    :loser-name "Kvitova P.",
+    :tournament "Toray Pan Pacific Open",
+    :location "Tokyo",
+    :date "2016-09-21"}])
+
+(map :date matches)
+;; => ("2016-08-29" "2016-08-31" "2016-09-02" "2016-09-05" "2016-09-20" "2016-09-21")
+
+;; create a new map (lookup table) with date as key
+(def matches-by-date (zipmap (map :date matches) matches))
+;; => #'ch05-reduce.core/matches-by-date
+
+;; get a match by date from lookup table
+(get matches-by-date "2016-09-20")
+;; => {:winner-name "Kvitova P.", :loser-name "Brengle M.", :tournament "Toray Pan Pacific Open", :location "Tokyo", :date "2016-09-20"}
+
+;; maps to seqs, and back again
+(into {} [[:a 1] [:b 2]])
+;; => {:a 1, :b 2}
+
+(seq {:a 1 :b 2})
+;; => ([:a 1] [:b 2])
+
+(def letters-and-numbers {:a 5 :b 18 :c 35})
+
+;; modifying letters-and-numbers using reduce
+(reduce (fn [acc k]
+          (assoc acc k (* 10 (get letters-and-numbers k))))
+        {}
+        (keys letters-and-numbers))
+;; => {:a 50, :b 180, :c 350}
+
+;; simpler way using into
+(into {} (map (fn [[k v]] [k (* v 10)]) letters-and-numbers))
+;; => {:a 50, :b 180, :c 350}
+
+;;; group by
+(def dishes
+  [{:name "Carrot cake"
+    :course :dessert}
+   {:name "French fries"
+    :course :main}
+   {:name "Celery"
+    :course :appetizer}
+   {:name "Salmon"
+    :course :main}
+   {:name "Rice"
+    :course :main}
+   {:name "Ice cream"
+    :course :dessert}])
+
+;; group by the type of dishes
+(group-by :course dishes)
+;; => {:dessert [{:name "Carrot cake", :course :dessert} {:name "Ice cream", :course :dessert}], :main [{:name "French fries", :course :main} {:name "Salmon", :course :main} {:name "Rice", :course :main}], :appetizer [{:name "Celery", :course :appetizer}]}
+
+(defn our-group-by [f xs]
+  (reduce (fn [acc x]
+            (update acc (f x) (fn [sublist] (conj (or sublist []) x))))
+          {}
+          xs))
+
+(our-group-by :course dishes)
+;; => {:dessert [{:name "Carrot cake", :course :dessert} {:name "Ice cream", :course :dessert}], :main [{:name "French fries", :course :main} {:name "Salmon", :course :main} {:name "Rice", :course :main}], :appetizer [{:name "Celery", :course :appetizer}]}
+
+;; exercise 5.05
+(defn tennis-csv->tournament-match-counts [csv]
+  (with-open [r (io/reader csv)]
+    (->> (csv/read-csv r)
+         sc/mappify
+         (group-by :tourney_slug)
+         (map (fn [[k ms]] [k (count ms)]))
+         (into {}))))
+
+(def tournaments (tennis-csv->tournament-match-counts
+                  "resources/match_scores_1991-2016_unindexed_csv.csv"))
+;; => #'ch05-reduce.core/tournaments
+
+(keys tournaments)
+;; => ("chicago" "bologna" "munich" "marseille" "dubai" "milan" "buzios" "miami" "warsaw" "bucharest" "wimbledon" "umag" "besancon" "doha" "copenhagen" "vienna" "ho-chi-minh-city" "oeiras" "tampa" "marrakech" "tashkent" "buenos-aires" "indian-wells" "stuttgart" "beijing" "bogota" "montreal" "toulouse" "mallorca" "antwerp" "australian-open" "montevideo" "sao-paulo" "cologne" "guaruja" "cincinnati" "amersfoort" "new-haven" "st-petersburg" "london" "brussels" "bangkok" "oporto" "belgrade" "kitzbuhel" "madrid" "hong-kong" "bermuda" "manchester" "jakarta" "delray-beach" "chennai" "las-vegas" "houston" "kuala-lumpur" "montpellier" "memphis" "lyon" "san-jose" "estoril" "athens" "bolton" "vina-del-mar" "auckland" "shenzhen" "us-open" "chengdu" "split" "istanbul" "indianapolis" "maceio" "zagreb" "shanghai" "monte-carlo" "boston" "quito" "los-cabos" "merano" "winston-salem" "long-island" "stockholm" "bastad" "los-angeles" "johannesburg" "adelaide" "sofia" "schenectady" "geneva" "acapulco" "rome" "nitto-atp-finals" "prague" "halle" "oahu" "tokyo" "mumbai" "rotterdam" "basel" "valencia" "newport" "brasilia" "brighton" "sydney" "s-hertogenbosch" "dusseldorf" "philadelphia" "barcelona" "singapore" "brisbane" "osaka" "hamburg" "paris" "tel-aviv" "seoul" "palermo" "roland-garros" "washington" "metz" "atlanta" "gstaad" "eastbourne" "ostrava" "moscow" "wellington" "rio-de-janeiro")
+
+;(take 5 (get tournaments "chicago"))
+;; => ({:tourney_slug "chicago", :winner_name "John McEnroe", :loser_name "Patrick McEnroe"} {:tourney_slug "chicago", :winner_name "John McEnroe", :loser_name "MaliVai Washington"} {:tourney_slug "chicago", :winner_name "Patrick McEnroe", :loser_name "Grant Connell"} {:tourney_slug "chicago", :winner_name "John McEnroe", :loser_name "Alexander Mronz"} {:tourney_slug "chicago", :winner_name "Patrick McEnroe", :loser_name "Richey Reneberg"})
+
+;(count (get tournaments "chicago"))
+;; => 31
+
+(def tournament-totals (tennis-csv->tournament-match-counts
+                  "resources/match_scores_1991-2016_unindexed_csv.csv"))
+
+(get tournament-totals "chicago")
+;; => 31
+(get tournament-totals "wimbledon")
+;; => 4422
+(get tournament-totals "roland-garros")
+;; => 4422
+(get tournament-totals "australian-open")
+;; => 4422
+(get tournament-totals "us-open")
+;; => 4422
+
+;;; exercise 5.06
+(defn win-loss-by-player [csv]
+  (with-open [r (io/reader csv)]
+    (->> (csv/read-csv r)
+         sc/mappify
+         (reduce (fn [acc {:keys [winner_slug loser_slug]}]
+                   (-> acc
+                       (update-in [winner_slug :wins]
+                                  (fn [wins] (inc (or wins 0))))
+                       (update-in [loser_slug :losses]
+                                  (fn [losses] (inc (or losses 0))))))))))
+
+(def w-l (win-loss-by-player "resources/match_scores_1991-2016_unindexed_csv.csv"))
+
+(get w-l "roger-federer")
+;; => {:losses 240, :wins 1050}
