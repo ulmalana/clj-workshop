@@ -2,7 +2,9 @@
   (:require [ch05-reduce.serena :as serena]
             [clojure.java.io :as io]
             [clojure.data.csv :as csv]
-            [semantic-csv.core :as sc]))
+            [semantic-csv.core :as sc]
+            [clojure.math.numeric-tower :as math]))
+
 
 (defn foo
   "I don't do a whole lot."
@@ -379,3 +381,85 @@
 
 (get w-l "roger-federer")
 ;; => {:losses 240, :wins 1050}
+
+;;; exercise 5.07
+;; elo rating system
+(defn match-probability [p1-rating p2-rating]
+  (/ 1
+     (+ 1
+        (math/expt 10 (/ (- p2-rating p1-rating) 400)))))
+
+(match-probability 700 1000)
+;; => 0.15097955721132328
+(match-probability 1000 700)
+;; => 0.8490204427886767
+(match-probability 1000 1000)
+;; => 1/2
+(match-probability 400 2000)
+;; => 1/10001
+
+;; exercise 5.08
+(def k-factor 32)
+
+(defn recalculate-rating [prev-rating expected-result real-result]
+  (+ prev-rating (* k-factor (- real-result expected-result))))
+
+(match-probability 1500 1400)
+;; => 0.6400649998028851
+(recalculate-rating 1500 0.64 0)
+;; => 1479.52
+
+(match-probability 400 1000)
+;; => 0.030653430031715508
+(recalculate-rating 400 0.03 1)
+;; => 431.04
+
+;;; activity 5.01
+(defn elo-world [csv k]
+  (with-open [r (io/reader csv)]
+    (->> (csv/read-csv r)
+         sc/mappify
+         (sc/cast-with {:winner_sets_won sc/->int
+                        :loser_sets_won sc/->int
+                        :winner_games_won sc/->int
+                        :loser_games_won sc/->int})
+         (reduce (fn [{:keys [players] :as acc} {:keys [:winner_name :winner_slug :loser_name :loser_slug] :as match}]
+                   (let [winner-rating (get players winner_slug 400)
+                         loser-rating (get players loser_slug 400)
+                         winner-prob (match-probability winner-rating loser-rating)
+                         loser-prob (- 1 winner-prob)
+                         predictable-match? (not= winner-rating loser-rating)
+                         prediction-correct? (> winner-rating loser-rating)
+                         correct-prediction (if (and predictable-match? prediction-correct?)
+                                              (inc (:correct-predictions acc))
+                                              (:correct-predictions acc))
+                         predictable-matches (if predictable-match?
+                                               (inc (:predictable-match-count acc))
+                                               (:predictable-match-count acc))]
+                     (-> acc
+                         (assoc :predictable-match-count predictable-matches)
+                         (assoc :correct-predictions correct-prediction)
+                         (assoc-in [:players winner_slug] (recalculate-rating winner-rating winner-prob 1))
+                         (assoc-in [:players loser_slug] (recalculate-rating loser-rating loser-prob 0))
+                         (update :match-count inc))))
+                 {:players {}
+                  :match-count 0
+                  :predictable-match-count 0
+                  :correct-predictions 0}))))
+
+(def ratings (elo-world "resources/match_scores_1991-2016_unindexed_csv.csv" 32))
+
+(get-in ratings [:players "roger-federer"])
+;; => 1119.6561580920807
+(get-in ratings [:players "rafael-nadal"])
+;; => 969.5294559130078
+(get-in ratings [:players "andre-agassi"])
+;; => 744.2950294510404
+(get-in ratings [:players "jimmy-connors"])
+;; => 429.38371383476505
+(:predictable-match-count ratings)
+;; => 95356
+(:correct-predictions ratings)
+;; => 61991
+(double (/ (:correct-predictions ratings) (:predictable-match-count ratings)))
+;; => 0.6501006753638995
