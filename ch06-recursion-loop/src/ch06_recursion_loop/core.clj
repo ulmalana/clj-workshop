@@ -139,3 +139,86 @@
 ;;   {:name "Green beans", :weight 300, :max-dimension 120}]
 ;;  [{:name "Potatoes", :weight 2500, :max-dimension 340}]
 ;;  [{:name "Potatoes", :weight 2500, :max-dimension 340}]]
+
+;; recur
+(defn safe-recursive-sum [so-far numbers]
+  (if (first numbers)
+    (recur (+ so-far (first numbers)) (next numbers))
+    so-far))
+
+(safe-recursive-sum 0 (range 1000))
+;; => 499500
+
+;; exercise 6.03
+(defn robust-bag-sequences* [{:keys [current-bag bags] :as acc} stream]
+  (cond
+    (not stream) (conj bags current-bag)
+    (full-bag? (conj current-bag (first stream)))
+    (recur (assoc acc
+                  :current-bag [(first stream)]
+                  :bags (conj bags current-bag))
+           (next stream))
+    :otherwise
+    (recur (assoc acc :current-bag (conj current-bag (first stream)))
+           (next stream))))
+
+(defn robust-bag-sequences [stream]
+  (robust-bag-sequences* {:bags []
+                          :current-bag []}
+                         stream))
+
+(def bags (robust-bag-sequences (article-stream 1000000)))
+
+(count bags)
+;; => 342397
+(first bags)
+;; => [{:name "Green beans", :weight 300, :max-dimension 120} {:name "Bread", :weight 350, :max-dimension 250} {:name "Potatoes", :weight 2500, :max-dimension 340}]
+
+;; loop
+(def process identity)
+(defn grocery-verification [input-items]
+  (loop [remaining-items input-items
+         processed-items []]
+    (if (not (seq remaining-items))
+      processed-items
+      (recur (next remaining-items)
+             (conj processed-items (process (first remaining-items)))))))
+
+;; exercise 6.04
+(defn looping-robust-bag-sequences [stream]
+  (loop [remaining-stream stream
+         acc {:current-bag []
+              :bags []}]
+    (let [{:keys [current-bag bags]} acc]
+      (cond
+        (not remaining-stream) (conj bags current-bag)
+        (full-bag? (conj current-bag (first remaining-stream)))
+        (recur (next remaining-stream)
+               (assoc acc :current-bag [(first remaining-stream)]
+                      :bags (conj bags current-bag)))
+        :otherwise
+        (recur (next remaining-stream)
+               (assoc acc :current-bag (conj current-bag (first remaining-stream))))))))
+
+(looping-robust-bag-sequences (article-stream 8))
+;; => [[{:name "Pepper", :weight 85, :max-dimension 90} {:name "Flour", :weight 1000, :max-dimension 140} {:name "Olive oil", :weight 400, :max-dimension 280} {:name "Ice cream", :weight 450, :max-dimension 200}] [{:name "Olive oil", :weight 400, :max-dimension 280} {:name "Green beans", :weight 300, :max-dimension 120} {:name "Bread", :weight 350, :max-dimension 250} {:name "Pepper", :weight 85, :max-dimension 90}]]
+
+;; tail recursion
+(def nested [5 12 [3 48 16] [1 [53 8 [[4 43]] [8 19 3]] 29]])
+
+;; (defn naive-tree-sum [so-far x]
+;;   (cond
+;;     (not x) so-far
+;;     (integer? (first x)) (recur (+ so-far (first x)) (next x))
+;;     (or (seq? (first x)) (vector? (first x)))
+;;     (recur (recur so-far (first x)) (next x)))) ;; error on this
+
+(defn less-naive-tree-sum [so-far x]
+  (cond
+    (not x) so-far
+    (integer? (first x)) (less-naive-tree-sum (+ so-far (first x)) (next x))
+    (or (seq? (first x)) (vector? (first x)))
+    (less-naive-tree-sum (less-naive-tree-sum so-far (first x)) (next x))))
+
+(less-naive-tree-sum 0 nested)
+;; => 252
