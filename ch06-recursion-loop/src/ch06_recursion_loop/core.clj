@@ -1,4 +1,5 @@
-(ns ch06-recursion-loop.core)
+(ns ch06-recursion-loop.core
+  (:require [clojure.string :as string]))
 
 (defn foo
   "I don't do a whole lot."
@@ -291,3 +292,175 @@
 ;; => 314
 (get-in lookup [:paris :bratislava])
 ;; => nil
+
+;; exercise 6.06
+;; pathfinding
+(defn find-path* [route-lookup destination path]
+  (let [position (last path)]
+    (cond
+      (= position destination) path
+      (get-in route-lookup [position destination]) (conj path destination)
+      :otherwise
+      (let [path-set (set path)
+            from-here (remove path-set (keys (get route-lookup position)))]
+        (when-not (empty? from-here)
+          (->> from-here
+               (map (fn [pos] (find-path* route-lookup destination (conj path pos))))
+               (remove empty?)
+               (mapcat (fn [x] (if (keyword? (first x))
+                                 [x]
+                                 x)))))))))
+
+(find-path* lookup :sevilla [:sevilla])
+;; => [:sevilla]
+
+(find-path* lookup :madrid [:sevilla])
+;; => [:sevilla :madrid]
+
+(defn find-path [route-lookup origin destination]
+  (find-path* route-lookup destination [origin]))
+
+(find-path lookup :sevilla :sevilla)
+;; => [:sevilla]
+
+(set [:amsterdam :paris :milan])
+;; => #{:paris :milan :amsterdam}
+((set [:amsterdam :paris :milan]) :berlin)
+;; => nil
+((set [:amsterdam :paris :milan]) :paris)
+;; => :paris
+
+(def small-routes
+  (grouped-routes [[:paris :milan 100]
+                   [:paris :geneva 100]
+                   [:geneva :rome 100]
+                   [:milan :rome 100]]))
+;; => #'ch06-recursion-loop.core/small-routes
+
+(find-path* small-routes :rome [:paris])
+;; => ([:paris :milan :rome] [:paris :geneva :rome])
+
+(def more-routes
+  (grouped-routes [[:paris :milan 100]
+                   [:paris :geneva 100]
+                   [:paris :barcelona 100]
+                   [:barcelona :milan 100]
+                   [:geneva :rome 100]
+                   [:milan :rome 100]]))
+;; => #'ch06-recursion-loop.core/more-routes
+
+(find-path* more-routes :rome [:paris])
+;; => ([:paris :milan :rome] [:paris :geneva :rome] ([:paris :barcelona :milan :rome]))
+
+(def even-more-routes (grouped-routes [[:paris :milan 100]
+                                       [:paris :geneva 100]
+                                       [:paris :barcelona 100]
+                                       [:barcelona :madrid 100]
+                                       [:madrid :milan 100]
+                                       [:barcelona :milan 100]
+                                       [:geneva :rome 100]
+                                       [:milan :rome 100]]))
+
+(find-path* even-more-routes :rome [:paris])
+;; => ([:paris :milan :rome] [:paris :geneva :rome] (([:paris :barcelona :madrid :milan :rome]) [:paris :barcelona :milan :rome]))
+
+(find-path* even-more-routes :rome [:paris])
+;; => ([:paris :milan :rome] [:paris :geneva :rome] [:paris :barcelona :madrid :milan :rome] [:paris :barcelona :milan :rome])
+
+(find-path* lookup :rome [:paris])
+;; => ([:paris :frankfurt :milan :rome] [:paris :frankfurt :berlin :warsaw :prague :vienna :milan :rome] [:paris :frankfurt :berlin :warsaw :prague :bratislava :vienna :milan :rome] [:paris :frankfurt :berlin :warsaw :prague :budapest :vienna :milan :rome] [:paris :frankfurt :geneva :milan :rome] [:paris :frankfurt :prague :vienna :milan :rome] [:paris :frankfurt :prague :bratislava :vienna :milan :rome] [:paris :frankfurt :prague :budapest :vienna :milan :rome] [:paris :frankfurt :amsterdam :berlin :warsaw :prague :vienna :milan :rome] [:paris :frankfurt :amsterdam :berlin :warsaw :prague :bratislava :vienna :milan :rome] [:paris :frankfurt :amsterdam :berlin :warsaw :prague :budapest :vienna :milan :rome] [:paris :milan :rome] [:paris :madrid :barcelona :milan :rome] [:paris :madrid :lisbon :sevilla :barcelona :milan :rome] [:paris :madrid :sevilla :barcelona :milan :rome] [:paris :geneva :frankfurt :milan :rome] [:paris :geneva :frankfurt :berlin :warsaw :prague :vienna :milan :rome] [:paris :geneva :frankfurt :berlin :warsaw :prague :bratislava :vienna :milan :rome] [:paris :geneva :frankfurt :berlin :warsaw :prague :budapest :vienna :milan :rome] [:paris :geneva :frankfurt :prague :vienna :milan :rome] [:paris :geneva :frankfurt :prague :bratislava :vienna :milan :rome] [:paris :geneva :frankfurt :prague :budapest :vienna :milan :rome] [:paris :geneva :frankfurt :amsterdam :berlin :warsaw :prague :vienna :milan :rome] [:paris :geneva :frankfurt :amsterdam :berlin :warsaw :prague :bratislava :vienna :milan :rome] [:paris :geneva :frankfurt :amsterdam :berlin :warsaw :prague :budapest :vienna :milan :rome] [:paris :geneva :milan :rome] [:paris :amsterdam :berlin :frankfurt :milan :rome] [:paris :amsterdam :berlin :frankfurt :geneva :milan :rome] [:paris :amsterdam :berlin :frankfurt :prague :vienna :milan :rome] [:paris :amsterdam :berlin :frankfurt :prague :bratislava :vienna :milan :rome] [:paris :amsterdam :berlin :frankfurt :prague :budapest :vienna :milan :rome] [:paris :amsterdam :berlin :warsaw :prague :frankfurt :milan :rome] [:paris :amsterdam :berlin :warsaw :prague :frankfurt :geneva :milan :rome] [:paris :amsterdam :berlin :warsaw :prague :vienna :milan :rome] [:paris :amsterdam :berlin :warsaw :prague :bratislava :vienna :milan :rome] [:paris :amsterdam :berlin :warsaw :prague :budapest :vienna :milan :rome] [:paris :amsterdam :frankfurt :milan :rome] [:paris :amsterdam :frankfurt :berlin :warsaw :prague :vienna :milan :rome] [:paris :amsterdam :frankfurt :berlin :warsaw :prague :bratislava :vienna :milan :rome] [:paris :amsterdam :frankfurt :berlin :warsaw :prague :budapest :vienna :milan :rome] [:paris :amsterdam :frankfurt :geneva :milan :rome] [:paris :amsterdam :frankfurt :prague :vienna :milan :rome] [:paris :amsterdam :frankfurt :prague :bratislava :vienna :milan :rome] [:paris :amsterdam :frankfurt :prague :budapest :vienna :milan :rome])
+
+;; exercise 6.07
+(defn cost-of-route [route-lookup route]
+  (apply +
+         (map (fn [start end]
+                (get-in route-lookup [start end]))
+              route
+              (next route))))
+
+(cost-of-route lookup [:london :paris :amsterdam :berlin :warsaw])
+;; => 603
+
+(cost-of-route lookup [:london])
+;; => 0
+
+(defn min-route [route-lookup routes]
+  (reduce (fn [current-best route]
+            (let [cost (cost-of-route route-lookup route)]
+              (if (or (< cost (:cost current-best))
+                      (= 0 (:cost current-best)))
+                {:cost cost :best route}
+                current-best)))
+          {:cost 0 :best [(ffirst routes)]}
+          routes))
+
+(defn find-path [route-lookup origin destination]
+  (min-route route-lookup (find-path* route-lookup destination [origin])))
+
+(find-path lookup :paris :rome)
+;; => {:cost 224, :best [:paris :milan :rome]}
+(find-path lookup :paris :berlin)
+;; => {:cost 291, :best [:paris :frankfurt :berlin]}
+(find-path lookup :warsaw :sevilla)
+;; => {:cost 720, :best [:warsaw :prague :vienna :milan :barcelona :sevilla]}
+
+;;; activity 6.01
+(defn attributes [m]
+  (string/join " "
+               (map (fn [[k v]]
+                      (if (string? v)
+                        (str (name k) "=\"" v "\"")
+                        (name k)))
+                    m)))
+
+(defn keyword->opening-tag [kw]
+  (str "<" (name kw) ">"))
+
+(defn keyword-attributes->opening-tag [kw attrs]
+  (str "<" (name kw) " " (attributes attrs) ">"))
+
+(defn keyword->closing-tag [kw]
+  (str "</" (name kw) ">"))
+
+(defn has-attributes? [tree]
+  (map? (second tree)))
+
+(defn singleton? [tree]
+  (and (vector? tree)
+       (#{:img :meta :link :input :br} (first tree))))
+
+(defn singleton-with-attrs? [tree]
+  (and (singleton? tree) (has-attributes? tree)))
+
+(defn element-with-attrs? [tree]
+  (and (vector? tree) (has-attributes? tree)))
+
+(defn my-hiccup [tree]
+  (cond
+    (not tree) tree
+    (string? tree) tree
+    (singleton-with-attrs? tree) (keyword-attributes->opening-tag (first tree) (second tree))
+    (singleton? tree) (keyword->opening-tag (first tree))
+    (element-with-attrs? tree)
+    (apply str
+           (concat
+            [(keyword-attributes->opening-tag (first tree) (second tree))]
+            (map my-hiccup (next (next tree)))
+            [(keyword->closing-tag (first tree))]))
+    (vector? tree)
+    (apply str
+           (concat
+            [(keyword->opening-tag (first tree))]
+            (map my-hiccup (next tree))
+            [(keyword->closing-tag (first tree))]))))
+
+(my-hiccup
+ [:html
+  [:head
+   [:title "html output from vectors"]]
+  [:body
+   [:h1 {:id "page-title"} "html output from vectors"]
+   [:div {:class "main-content"}
+    [:p "converting nested list into html is an old lisp trick"]
+    [:p "but clojure uses vectors instead."]]]])
+;; => "<html><head><title>html output from vectors</title></head><body><h1 id=\"page-title\">html output from vectors</h1><div class=\"main-content\"><p>converting nested list into html is an old lisp trick</p><p>but clojure uses vectors instead.</p></div></body></html>"
