@@ -83,3 +83,28 @@
 ;;  [25.9 589014 :peak]
 ;;  [23.8 691995 :valley]
 ;;  [24.7 734902 :peak])
+
+;; exercise 7.02
+(def endless-potatoes (repeatedly (fn [] (+ 10 (rand-int 390)))))
+
+(take 5 endless-potatoes)
+;; => (302 278 11 341 180)
+(take 10 endless-potatoes)
+;; => (302 278 11 341 180 348 188 375 22 297)
+
+(defn average-potatoes [prev arrivals]
+  (lazy-seq
+   (if-not arrivals
+     '()
+     (let [[_ n total] prev
+           current [(first arrivals)
+                    (inc (or n 0))
+                    (+ (first arrivals) (or total 0))]]
+       (cons
+        current
+        (average-potatoes current (next arrivals)))))))
+
+(take 3 (average-potatoes '() endless-potatoes))
+;; => ([302 1 302] [278 2 580] [11 3 591])
+(last (take 500000 (average-potatoes '() endless-potatoes)))
+;; => [353 500000 102208764]
