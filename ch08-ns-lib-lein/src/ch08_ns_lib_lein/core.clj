@@ -1,4 +1,8 @@
-(ns ch08-ns-lib-lein.core)
+(ns ch08-ns-lib-lein.core
+  (:require [clojure.string :as str]
+            [java-time :as time]
+            [cheshire.core :as json])
+  (:gen-class))
 
 ;; activity 8.01
 
@@ -45,3 +49,23 @@ updated-users
 ;; |     Mr Paul Smith |
 ;; |     Dr John Blake |
 ;; | Miss Katie Hudson |
+
+;; (defn -main [& args]
+;;   (-> (str/join " " args)
+;;       (str/replace "melon" "banana")
+;;       (str/replace "apple" "orange")
+;;       println))
+
+;; activity 8.02
+(defn -main [& args]
+  (let [nums (map read-string args)
+        sum (apply + nums)]
+    (println sum))
+  (println (time/local-time)))
+
+;; activity 8.03
+(defn generate-json-from-hash [hash]
+  (json/generate-string hash))
+
+(defn generate-hash-from-json [json]
+  (json/parse-string json))
