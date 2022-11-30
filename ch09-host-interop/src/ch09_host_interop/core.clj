@@ -2,7 +2,8 @@
   (:import [java.math BigDecimal BigInteger]
            [java.time LocalTime ZonedDateTime]
            [java.util Locale Scanner])
-  (:require [ch09-host-interop.utils :as utils])
+  (:require [ch09-host-interop.utils :as utils]
+            [ch09-host-interop.book-utils :as book-utils])
   (:gen-class))
 
 (def big-num (new BigDecimal "100000"))
@@ -73,14 +74,16 @@
   (println string))
 ;; => #object[java.lang.StringBuffer 0x43abfd44 quick brown fox jumped over the lazy dog]
 
-;; exercise 9.04
+;; exercise 9.04 and 9.05
 (def ^:const price-menu {:latte 0.5 :mocha 0.4})
+(def ^:const orders-file "orders.edn")
 (def input (Scanner. System/in))
 
 (defn- buy-coffee [type]
   (println "How many coffees do you want to buy?")
   (let [choice (.nextInt input)
         price (utils/calculate-coffee-price price-menu type choice)]
+    (utils/save-coffee-order orders-file type choice price)
     (utils/display-bought-coffee-message type choice price)))
 
 (defn- show-menu []
@@ -93,7 +96,8 @@
 
 (defn- show-orders []
   (println "\n")
-  (println "Display orders here"))
+  (doseq [order (utils/load-orders orders-file)]
+    (println (utils/display-order order))))
 
 (defn- start-app []
   "Displaying main menu and processing user choices."
@@ -107,7 +111,95 @@
           2 (show-orders)
           3 (dosync (ref-set run-application false)))))))
 
+;; exercise 9.06
+(def capitals ["Berlin" "Oslo" "Warszawa" "Belgrad"])
+
+(class capitals)
+;; => clojure.lang.PersistentVector
+
+;; create java arraylist from clojure vector
+(def destinations (java.util.ArrayList. capitals))
+
+(class destinations)
+;; => java.util.ArrayList
+
+;; convert from java arraylist to clojure vector
+(class (vec destinations))
+;; => clojure.lang.PersistentVector
+
+;; convert clojure map to java hashmap
+(def fluss {"Germany" "Rhein" "Poland" "Vistula"})
+(class fluss)
+;; => clojure.lang.PersistentArrayMap
+
+(def rivers (java.util.HashMap. fluss))
+(class rivers)
+;; => java.util.HashMap
+
+;; from java hashmap to clojure map
+(class (into {} rivers))
+;; => clojure.lang.PersistentArrayMap
+
+;;;; activity 9.01
+(def ^:const books {:2019 {:clojure {:title "Hands-on reactive programming with Clojure" :price 20}
+                           :go {:title "Go Cookbook" :price 18}}
+                    :2018 {:clojure {:title "Clojure Microservices" :price 15}
+                           :go {:title "Advanced Go programming" :price 25}}})
+
+(def ^:const book-orders "book-orders.edn")
+
+(defn- show-orders-by-year [year]
+  (println "\n")
+  (doseq [order (filter #(= year (:year %)) (book-utils/load-orders book-orders))]
+    (println (book-utils/display-order order books))))
+
+
+(defn book-show-order []
+  (println "| Books by published year |")
+  (println "|1. 2019  2. 2018 |")
+  (let [choice (.nextInt input)]
+    (case choice
+      1 (show-orders-by-year :2019)
+      2 (show-orders-by-year :2018))))
+
+(defn- buy-book [year prog-lang]
+  (println "How many books do you want to buy?")
+  (let [choice (.nextInt input)
+        price (book-utils/calculate-book-price (get books year) prog-lang choice)]
+    (book-utils/save-book-order book-orders year prog-lang choice price)
+    (book-utils/display-bought-book-message (:title (get (get books year) prog-lang)) choice price)))
+
+(defn- show-year-menu [year]
+  (let [year-books (get books year)]
+    (println "| Books in" (name year) "|")
+    (println "| 1. " (:title (:clojure year-books)) " 2. "
+             (:title (:go year-books)) "|")
+    (let [choice (.nextInt input)]
+      (case choice
+        1 (buy-book year :clojure)
+        2 (buy-book year :go)))))
+
+(defn- book-show-menu []
+  (println "| Available books by year |")
+  (println "| 1. 2019   2. 2018 |")
+  (let [choice (.nextInt input)]
+    (case choice
+      1 (show-year-menu :2019)
+      2 (show-year-menu :2018))))
+
+(defn- book-start-app []
+  "Displaying main menu and processing user choices"
+  (let [run-app (ref true)]
+    (while (deref run-app)
+      (println "\n|\t Books app \t|")
+      (println "| 1-Menu 2-Orders 3-Exit|\n")
+      (let [choice (.nextInt input)]
+        (case choice
+          1 (book-show-menu)
+          2 (book-show-order)
+          3 (dosync (alter run-app (fn [_] false))))))))
+
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
-  (println "Hello, World!"))
+  (book-start-app))
