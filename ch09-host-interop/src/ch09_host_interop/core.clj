@@ -199,6 +199,37 @@
           2 (book-show-order)
           3 (dosync (alter run-app (fn [_] false))))))))
 
+;; exercise 9.10
+(def three-numbers-array (java.util.ArrayList. [0 1 2]))
+
+(defn array-list-getter [array index]
+  (.get array index))
+
+(array-list-getter three-numbers-array 1)
+;; => 1
+
+;; (array-list-getter three-numbers-array 5)
+;; Execution error (IndexOutOfBoundsException) at jdk.internal.util.Preconditions/outOfBounds (Preconditions.java:64).
+;; Index 5 out of bounds for length 3
+
+(defn array-list-getter [array index]
+  (try
+    (.get array index)
+    (catch IndexOutOfBoundsException ex
+      (str "No element at index " index))
+    (finally (println "Login usage of array-list-getter"))))
+
+(array-list-getter three-numbers-array 5)
+;; => "No element at index 5"
+
+(array-list-getter three-numbers-array 1)
+;; => Login usage of array-list-getter
+;; => 1
+
+(array-list-getter three-numbers-array 5)
+;; => Login usage of array-list-getter
+;; => "No element at index 5"
+
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
