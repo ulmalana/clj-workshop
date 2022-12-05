@@ -5,7 +5,8 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [expectations "2.1.10"]
-                 [midje "1.9.4"]]
+                 [midje "1.9.4"]
+                 [org.clojure/test.check "0.10.0"]]
   :plugins [[lein-expectations "0.0.8"]]
   :main ^:skip-aot ch10-testing.core
   :target-path "target/%s"

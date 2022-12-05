@@ -9,7 +9,8 @@
 (defn calculate-coffee-price [coffees coffee-type number]
   (-> (get coffees coffee-type)
       (* number)
-      float))
+      float
+      Math/abs))
 
 (defn display-bought-coffee-message [type number total]
   (println "Buying" number (name type) "coffees for total: $" total))
@@ -42,4 +43,4 @@
   (save-to orders-file {:type type :number number :price price}))
 
 (defn display-order [order]
-  (str "Bought " (:number order) " cups of " (name (:type order)) " for $ " (:price order)))
+  (str "Bought " (:number order) " cups of " (name (:type order)) " for $" (:price order)))
