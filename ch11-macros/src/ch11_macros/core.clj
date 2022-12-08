@@ -205,6 +205,84 @@
 ;;   (def ol (ch11-macros.core/tag-fn "ol"))
 ;;   (def ol->li (ch11-macros.core/subtag-fn "ol" li)))
 
+
+;;; variable capture
+(defmacro parameterized-multi-minimal-wrong [n-times s]
+  (cons 'do (repeat n-times '(println s))))
+
+(let [s "wrong"]
+  (parameterized-multi-minimal-wrong 5 "right"))
+;; => nil
+;; wrong
+;; wrong
+;; wrong
+;; wrong
+;; wrong
+
+(defmacro let-number [[binding n] body]
+  `(let [~(symbol (str binding "-as-string")) (str ~n)
+         ~(symbol (str binding "-as-int")) (int ~n)
+         ~(symbol (str binding "-as-double")) (double ~n)]
+     ~body))
+
+(let-number [my-int 5]
+  (+ my-int-as-int 8))
+;; => 13
+
+(let-number [my-int 5]
+  (str "the value is: " my-int-as-string))
+;; => "the value is: 5"
+
+(let [my-int-as-int 1000]
+  (let-number [my-int (/ my-int-as-int 2)]
+    (str "the result is: " my-int-as-double)))
+;; => "the result is: 250.0"
+
+(macroexpand-1 '(let-number [my-int (/ my-int-as-int 2)]
+                  (str "the result is: " my-int-as-double)))
+;; =>
+;; (clojure.core/let [my-int-as-string (clojure.core/str (/ my-int-as-int 2))
+;;                    my-int-as-int (clojure.core/int (/ my-int-as-int 2))
+;;                    my-int-as-double (clojure.core/double (/ my-int-as-int 2))]
+;;   (str "the result is: " my-int-as-double))
+;; my-int-as-int is divided by 2 twice, so the result is 250.0
+
+;; avoiding variable capture with gensym
+(defmacro let-number-fix [[binding n] body]
+  `(let [result# ~n
+         ~(symbol (str binding "-as-string")) (str result#)
+         ~(symbol (str binding "-as-int")) (int result#)
+         ~(symbol (str binding "-as-double")) (double result#)]
+     ~body))
+
+(let [my-int-as-int 1000.0]
+  (let-number-fix [my-int (/ my-int-as-int 2)]
+    (str "the result is: " my-int-as-double)))
+;; => "the result is: 500.0"
+
+;; gensym: generated symbol
+`(result#)
+;; => (result__8148__auto__)
+
+`(result#)
+;; => (result__8152__auto__)
+
+`(= result# result#)
+;; => (clojure.core/= result__8157__auto__ result__8157__auto__)
+
+(defmacro bad-let-number [[binding n] body]
+  `(let [~'result ~n
+         ~(symbol (str binding "-as-string")) (str ~'result)
+         ~(symbol (str binding "-as-int")) (int ~'result)
+         ~(symbol (str binding "-as-double")) (double ~'result)]
+     ~body))
+;; => #'ch11-macros.core/bad-let-number
+
+(let [result 42]
+  (bad-let-number [my-int 1000]
+                  (= result 1000)))
+;; => true
+
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
