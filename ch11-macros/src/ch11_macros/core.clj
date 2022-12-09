@@ -1,4 +1,7 @@
 (ns ch11-macros.core
+  (:require [clojure.java.io :as io]
+            [clojure.data.csv :as csv]
+            [semantic-csv.core :as sc])
   (:gen-class))
 
 (defmacro minimal-macro []
@@ -283,6 +286,153 @@
                   (= result 1000)))
 ;; => true
 
+;; exercise 11.04
+(defn wrap-fn-body [fn-name tx-fn b]
+  (let [arg-list (first b)
+        fn-body (rest b)]
+    (when-not (first (filter #(= % 'client-id) arg-list))
+      (throw (ex-info "missing client-id argument" {})))
+    `(~arg-list
+      (let [start-time# (System/nanoTime)]
+        (try
+          (let [result# (do ~@fn-body)]
+            (~tx-fn {:name ~(name fn-name)
+                     :client-id ~'client-id
+                     :status :complete
+                     :start-time start-time#
+                     :end-time (System/nanoTime)})
+            result#)
+          (catch Exception e#
+            (~tx-fn {:name ~(name fn-name)
+                     :client-id ~'client-id
+                     :status :error
+                     :start-time start-time#
+                     :end-time (System/nanoTime)})
+            (throw e#)))))))
+
+(defmacro defmonitored
+  [fn-name tx-fn & args-and-body]
+  (let [pre-arg-list (take-while (complement sequential?) args-and-body)
+        fn-content (drop-while (complement sequential?) args-and-body)
+        fn-bodies (if (vector? (first fn-content))
+                    `(~fn-content)
+                    fn-content)]
+    `(defn ~fn-name ~@pre-arg-list
+       ~@(map (partial wrap-fn-body fn-name tx-fn) fn-bodies))))
+
+(defmonitored my-func println [client-id m] (assoc m :client client-id))
+
+(my-func 32 {:data 123})
+;; => {:data 123, :client 32}
+;; {:client-id 32, :name my-func, :start-time 4138545660618, :end-time 4138545665547, :status :complete}
+
+(defmonitored exception-func println [client-id] (throw (ex-info "Boom!" {})))
+
+;;(exception-func 5)
+;; => 
+;; {:client-id 5, :name exception-func, :start-time 4208513192769, :end-time 4208513746098, :status :error}
+;; Execution error (ExceptionInfo) at ch11-macros.core/exception-func (form-init14215583336918779527.clj:326).
+;; Boom!
+
+;;(defmonitored no-client-func println [no-client-id] (+ 1 1))
+;; => 
+;; Syntax error macroexpanding clojure.core/defn at (src/ch11_macros/core.clj:334:1).
+;; missing client-id argument
+
+;;;;;;;
+(defmacro fn-context [v & symbol-fn-pairs]
+  `(let [v# ~v]
+     ~@(map (fn [[sym f]]
+              `(defn ~sym [x#]
+                 (~f v# x#))) (partition 2 symbol-fn-pairs))))
+
+;;(fn-context 5 adder + subtractor - multiplier *)
+;; => 
+;; Syntax error compiling at (*cider-repl clj-workshop/ch11-macros:localhost:46665(clj)*:222:19).
+;; Unable to resolve symbol: v__10509__auto__ in this context
+
+(macroexpand-1 '(fn-context 5 adder + subtractor - multiplier *))
+;; (clojure.core/let
+;;     [v__10510__auto__ 5]
+;;   (clojure.core/defn
+;;     adder
+;;     [x__10508__auto__]
+;;     (+ v__10509__auto__ x__10508__auto__))
+;;   (clojure.core/defn
+;;     subtractor
+;;     [x__10508__auto__]
+;;     (- v__10509__auto__ x__10508__auto__))
+;;   (clojure.core/defn
+;;     multiplier
+;;     [x__10508__auto__]
+;;     (* v__10509__auto__ x__10508__auto__)))
+
+(defmacro fn-context-fix [v & symbol-fn-pairs]
+  (let [common-val-gensym (gensym "common-val-")]
+    `(let [~common-val-gensym ~v]
+       ~@(map (fn [[sym f]]
+                `(defn ~sym [x#]
+                   (~f ~common-val-gensym x#))) (partition 2 symbol-fn-pairs)))))
+
+(fn-context-fix 5 adder + subtractor - multiplier *)
+
+(adder 5)
+;; => 10
+(subtractor 42)
+;; => -37
+(multiplier 10)
+;; => 50
+
+
+;; activity 11.01
+(defn maybe-select-keys [m maybe-keys]
+  (if (seq maybe-keys)
+    (select-keys m maybe-keys)
+    m))
+
+(defmacro with-tennis-csv [csv casts fields & forms]
+  `(with-open [reader# (io/reader ~csv)]
+     (->> (csv/read-csv reader#)
+          sc/mappify
+          (sc/cast-with ~casts)
+          ~@forms
+          (map #(maybe-select-keys % ~fields))
+          doall)))
+
+(defn blowouts [csv threshold]
+  (with-tennis-csv csv
+    {:winner_games_won sc/->int :loser_games_won sc/->int}
+    [:winner_name :loser_name :games_diff]
+    (map #(assoc % :games_diff (- (:winner_games_won %) (:loser_games_won %))))
+    (filter #(> (:games_diff %) threshold))))
+
+(blowouts "resources/match_scores_1991-2016_unindexed_csv.csv" 16)
+;; ({:winner_name "Jean-Philippe Fleurian",
+;;   :loser_name "Renzo Furlan",
+;;   :games_diff 17}
+;;  {:winner_name "Todd Witsken", :loser_name "Kelly Jones", :games_diff 17}
+;;  {:winner_name "Nicklas Kulti", :loser_name "German Lopez", :games_diff 17}
+;;  {:winner_name "Andrei Medvedev", :loser_name "Lars Koslowski", :games_diff 17}
+;;  {:winner_name "Sergi Bruguera",
+;;   :loser_name "Thierry Champion",
+;;   :games_diff 18}
+;;  {:winner_name "Michael Chang", :loser_name "Gianluca Pozzi", :games_diff 17}
+;;  {:winner_name "Lleyton Hewitt", :loser_name "Alex Corretja", :games_diff 17}
+;;  {:winner_name "Andre Agassi", :loser_name "Hyung-Taik Lee", :games_diff 17}
+;;  {:winner_name "Andy Murray", :loser_name "Alberto Martin", :games_diff 17}
+;;  {:winner_name "David Ferrer", :loser_name "Fabrice Santoro", :games_diff 17}
+;;  {:winner_name "Tomas Berdych", :loser_name "Robert Smeets", :games_diff 17})
+
+(with-tennis-csv "resources/match_scores_1991-2016_unindexed_csv.csv" {} [:winner_name] (filter #(= "Roger Federer" (:loser_name %))))
+;; ({:winner_name "Lucas Arnold Ker"}
+;;  {:winner_name "Jan Siemerink"}
+;;  {:winner_name "Andre Agassi"}
+;;  {:winner_name "Arnaud Clement"}
+;;  {:winner_name "Yevgeny Kafelnikov"}
+;;  {:winner_name "Kenneth Carlsen"}
+;;  {:winner_name "Vincent Spadea"}
+;;  ...
+;;  )
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
