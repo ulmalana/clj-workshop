@@ -256,3 +256,17 @@
 ;; Lets buy 1 stocks at 32 per stock
 @client-account
 ;; => 2068
+
+;;; agents (asynchronous refs type)
+(def integer-agent (agent 5))
+
+(send integer-agent (fn [a] (Thread/sleep 5000) (inc a)))
+;; #<Agent@25d904a1: 5>
+(send integer-agent (fn [a] (Thread/sleep 5000) (inc a)))
+;; #<Agent@25d904a1: 5>
+@integer-agent
+;; =>  5
+@integer-agent
+;; => 6
+@integer-agent
+;; => 7
