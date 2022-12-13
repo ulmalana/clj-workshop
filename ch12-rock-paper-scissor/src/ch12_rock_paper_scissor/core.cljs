@@ -9,7 +9,17 @@
 
 (defonce app-state (atom {:computer-choice nil
                           :game-state :setup
-                          :user-choice nil}))
+                          :user-choice nil
+                          :countdown 3}))
+
+(set-validator! app-state #(and
+                            (>= 3 (:countdown %) 0)
+                            (#{:setup :waiting :complete} (:game-state %))))
+
+(add-watch app-state :countdown-zero
+           (fn [_k state old new]
+             (when (and (= 1 (:countdown old)) (= 0 (:countdown new)))
+               (js/clearInterval (:interval new)))))
 
 (defn computer-choice []
   (nth [:rock :scissor :paper] (rand-int 3)))
@@ -35,13 +45,18 @@
     :tie
     (get-in resolutions [player computer])))
 
+(defn start-countdown []
+  (js/setInterval #(swap! app-state update :countdown dec) 1000))
+
 (defn start-game []
-  (swap! app-state
-         (fn [state]
-           (assoc state
-                  :computer-choice (computer-choice)
-                  :game-state :waiting
-                  :player-choice nil))))
+  (let [interval (start-countdown)]
+    (swap! app-state
+           (fn [state]
+             (assoc state
+                    :computer-choice (computer-choice)
+                    :game-state :waiting
+                    :countdown 3
+                    :interval interval)))))
 
 (defn player-choice [choice]
   (fn []
@@ -50,6 +65,31 @@
              (assoc state
                     :player-choice choice
                     :game-state :complete)))))
+
+(rum/defc choice-link-view [kw label countdown]
+  (if (zero? countdown)
+    [:div [:a {:href (str "#" (name kw))
+               :on-click (player-choice kw)}
+           label]]
+    [:div label]))
+
+(rum/defc countdown-view < rum/reactive [countdown]
+  [:div.countdown
+   [:div.countdown-message
+    (if (> countdown 0)
+      "Get ready to make your choice..."
+      "Go!")]
+   [:h1 countdown]])
+
+(rum/defc choices-view < rum/reactive []
+  (let [countdown (:countdown (rum/react app-state))]
+    [:div.player-choices-view
+     (countdown-view countdown)
+     [:div.choices
+      [:h3 "Choose one"]
+      (choice-link-view :rock "Rock" countdown)
+      (choice-link-view :paper "Paper" countdown)
+      (choice-link-view :scissor "Scissor" countdown)]]))
 
 (rum/defc result-view < rum/reactive []
   (let [player (:player-choice (rum/react app-state))
@@ -75,13 +115,7 @@
      [:div [:a {:href "#start"
                 :onClick start-game} "Start"]]]
     :waiting
-    [:div "Choose one"
-     [:div [:a {:href "#rock"
-                :onClick (player-choice :rock)} "Rock"]]
-     [:div [:a {:href "#paper"
-                :onClick (player-choice :paper)} "Paper"]]
-     [:div [:a {:href "#scissor"
-                :onClick (player-choice :scissor)} "Scissor"]]]
+    (choices-view)
     :complete
     (result-view)))
 
