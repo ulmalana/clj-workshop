@@ -270,3 +270,23 @@
 ;; => 6
 @integer-agent
 ;; => 7
+
+;;; watchers
+(def observable-atom (atom 5))
+
+(add-watch observable-atom :watcher-1
+           (fn [k a old new]
+             (println "The observable atom has gone from" old "to" new)))
+;; => #atom[5 0x7e454fb9]
+
+(swap! observable-atom inc)
+;; The observable atom has gone from 5 to 6
+;; => 6
+
+;; validator
+(set-validator! observable-atom #(< % 7))
+
+;; (swap! observable-atom inc)
+;; Execution error (IllegalStateException) at ch12-concurrency.core/eval11441 (form-init2553740782851067066.clj:289).
+;; Invalid reference state
+
