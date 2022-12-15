@@ -6,7 +6,9 @@
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [org.clojure/java.jdbc "0.7.9"]
                  [org.apache.derby/derby "10.14.2.0"]
-                 [hikari-cp "2.8.0"]]
+                 [hikari-cp "2.8.0"]
+                 [semantic-csv "0.2.1-alpha1"]
+                 [org.clojure/data.csv "0.1.4"]]
   :main ^:skip-aot ch13-db.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all

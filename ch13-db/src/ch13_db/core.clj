@@ -51,7 +51,7 @@ user_id INT REFERENCES app_user ON DELETE CASCADE)")
 ;;                           [:weight :smallint]]
 ;;                          {:entities clojure.string/lower-case}))
 
-(jdbc/db-do-commands db [create-app-user-ddl create-activity-ddl])
+;;(jdbc/db-do-commands db [create-app-user-ddl create-activity-ddl])
 ;; => (0 0)
 
 ;; exercise 13.04 data insertion
@@ -91,3 +91,48 @@ user_id INT REFERENCES app_user ON DELETE CASCADE)")
 ;; => [[:id :activity_type :distance :duration :user_id]
 ;; => [1 "run" 8.67M 2520 1]
 ;; => [2 "cycle" 17.68M 2703 1]]
+
+;; exercise 13.06 controlling results
+(defn add-user-friendly-duration
+  [{:keys [duration] :as row}]
+  (let [quot-rem (juxt quot rem)
+        [hours remainder] (quot-rem duration (* 60 60))
+        [minutes seconds] (quot-rem remainder 60)]
+    (assoc row :friendly-duration
+           (cond-> ""
+             (pos? hours) (str hours "h ")
+             (pos? minutes) (str minutes "m ")
+             (pos? seconds) (str seconds "s")
+             :always clojure.string/trim))))
+
+(jdbc/query db ["select * from activity"]
+            {:row-fn add-user-friendly-duration})
+;; => ({:id 1, :activity_type "run", :distance 8.67M, :duration 2520, :user_id 1, :friendly-duration "42m"} {:id 2, :activity_type "cycle", :distance 17.68M, :duration 2703, :user_id 1, :friendly-duration "45m 3s"} {:id 101, :activity_type "run", :distance 8.67M, :duration 2520, :user_id 1, :friendly-duration "42m"} {:id 102, :activity_type "cycle", :distance 17.68M, :duration 2703, :user_id 1, :friendly-duration "45m 3s"})
+
+(jdbc/query db ["select * from activity"]
+            {:result-set-fn (fn [result-set]
+                              (reduce (fn [total-distance {:keys [distance]}]
+                                        (+ total-distance distance))
+                                      0
+                                      result-set))})
+;; => 52.70M
+
+(jdbc/query db ["select * from activity"]
+            {:row-fn :distance
+             :result-set-fn #(apply + %)})
+;; => 52.70M
+
+;; exercise 13.07 update and delete
+(jdbc/update! db :app_user {:weight 78} ["first_name = 'Andre' and surname = 'Agassi'"])
+;; => (2)
+
+(jdbc/delete! db :app_user ["id = 101"])
+;; => [1]
+(jdbc/delete! db :activity ["id = 101 or id = 102"])
+;; => [2]
+
+(jdbc/query db ["select * from app_user"])
+;; => ({:id 1, :first_name "Andre", :surname "Agassi", :height 180, :weight 78})
+
+(jdbc/query db ["select * from activity"])
+;; => ({:id 1, :activity_type "run", :distance 8.67M, :duration 2520, :user_id 1} {:id 2, :activity_type "cycle", :distance 17.68M, :duration 2703, :user_id 1})
