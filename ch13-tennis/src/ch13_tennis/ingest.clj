@@ -7,3 +7,6 @@
     (jdbc/insert-multi! db :player players)
     (jdbc/insert-multi! db :tennis_match matches)))
 
+
+(defn tennis-match [db tennis-match]
+  (first (jdbc/insert! db :tennis_match tennis-match)))

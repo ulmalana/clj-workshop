@@ -9,7 +9,13 @@
                  [org.apache.derby/derby "10.14.2.0"]
                  [org.clojure/data.csv "0.1.4"]
                  [org.clojure/java.jdbc "0.7.9"]
-                 [semantic-csv "0.2.1-alpha1"]]
+                 [semantic-csv "0.2.1-alpha1"]
+                 [clj-http "3.10.0"]
+                 [compojure "1.6.1"]
+                 [metosin/muuntaja "0.6.4"]
+                 [org.clojure/data.json "0.2.6"]
+                 [ring/ring-core "1.7.1"]
+                 [ring/ring-jetty-adapter "1.7.1"]]
   :main ^:skip-aot ch13-tennis.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all

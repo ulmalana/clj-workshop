@@ -18,7 +18,7 @@
   (let [winner-expected-outcome (match-probability winner-rating loser-rating)]
     [winner-expected-outcome (- 1 winner-expected-outcome)]))
 
-(defn- calculate-new-ratings
+(defn calculate-new-ratings
   [current-player-ratings {:keys [winner_id loser_id]}]
   (let [winner-rating (get current-player-ratings winner_id 1000)
         loser-rating (get current-player-ratings loser_id 1000)
@@ -56,3 +56,6 @@
                                  {:max-rating Integer/MIN_VALUE
                                   :player-name nil}
                                  rs))}))
+
+(defn persist [db elo-ratings]
+  (jdbc/insert-multi! db :elo elo-ratings))
