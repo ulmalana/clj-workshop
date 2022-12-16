@@ -39,6 +39,7 @@
        {:status 201})
   (DELETE "/data-structure" request
           (swap! db dissoc :data))
+  (route/files "/files/" {:root "./resources/"})
   (route/not-found "Page not found"))
 
 ;; (def app
