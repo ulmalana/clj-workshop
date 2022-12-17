@@ -15,7 +15,8 @@
                  [metosin/muuntaja "0.6.4"]
                  [org.clojure/data.json "0.2.6"]
                  [ring/ring-core "1.7.1"]
-                 [ring/ring-jetty-adapter "1.7.1"]]
+                 [ring/ring-jetty-adapter "1.7.1"]
+                 [jumblerg/ring-cors "2.0.0"]]
   :main ^:skip-aot ch13-tennis.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all

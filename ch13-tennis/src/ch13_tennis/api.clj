@@ -8,7 +8,8 @@
             [ch13-tennis.ingest :as ingest]
             [ch13-tennis.query :as query]
             [ring.adapter.jetty :refer [run-jetty]]
-            [ring.middleware.params :as params]))
+            [ring.middleware.params :as params]
+            [jumblerg.middleware.cors :refer [wrap-cors]]))
 
 (defroutes routes
   (context "/players" []
@@ -47,7 +48,9 @@
   (run-jetty
    (-> routes
        middleware/wrap-format
-       params/wrap-params)
+       params/wrap-params
+       (wrap-cors ".*")
+       (wrap-cors identity))
    {:port 8080
     :join? false}))
 

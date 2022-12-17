@@ -1,6 +1,6 @@
 ----------------------------------------------------------------
-Fri Dec 16 20:41:28 WIB 2022:
-Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-0185-1b2b-1b2b-000003cb49f0 
+Sat Dec 17 11:28:10 WIB 2022:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-0185-1e56-e6cb-0000037aeac0 
 on database directory /home/riz/clj-workshop/ch13-tennis/tennis with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@55054057 
 Loaded from file:/home/riz/.m2/repository/org/apache/derby/derby/10.14.2.0/derby-10.14.2.0.jar
 java.vendor=Ubuntu
